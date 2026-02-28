@@ -1,0 +1,26 @@
+# local dev: api + worker + db + redis
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: deploymate_postgres
+    environment:
+      POSTGRES_USER: deploymate
+      POSTGRES_PASSWORD: deploymate
+      POSTGRES_DB: deploymate
+    ports:
+      - "5432:5432"
+    volumes:
+      - deploymate_pg:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: deploymate_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - deploymate_redis:/data
+
+volumes:
+  deploymate_pg:
+  deploymate_redis:
