@@ -1,7 +1,8 @@
+<!-- Step 1 — Local Dev Infrastructure (docker-compose) -->
 <!-- docker-compose.dev.yml -->
 docker-compose.dev.yml is my local “mini cloud” file.
 
-It lets you start the backend services my app depends on (Postgres + Redis) with one command, so my API/worker can run on my laptop exactly like they will on DigitalOcean.
+It lets i start the backend services my app depends on (Postgres + Redis) with one command, so my API/worker can run on my laptop exactly like they will on DigitalOcean.
 
 What it does in this project
 
@@ -17,7 +18,7 @@ Why it’s important (practically)
 
 Fast setup
 
-Instead of installing Postgres + Redis manually on my machine and configuring them, you run:
+Instead of installing Postgres + Redis manually on my machine and configuring them, i run:
 
 docker compose -f docker-compose.dev.yml up -d
 
@@ -27,7 +28,7 @@ If a teammate runs my project, they get the same DB + Redis versions and config.
 
 Reproducible + less “it works on my machine”
 
-You avoid differences between laptops (Windows/Mac/Linux) and versions.
+I avoid differences between laptops (Windows/Mac/Linux) and versions.
 
 Persistent data
 
@@ -37,11 +38,11 @@ Without volumes, every restart would wipe the database.
 
 Matches production architecture
 
-In production you’ll use Managed Postgres and Managed Redis on DigitalOcean.
+In production i'll use Managed Postgres and Managed Redis on DigitalOcean.
 
-Locally, Compose gives you the same idea but as containers.
+Locally, Compose gives i the same idea but as containers.
 
-What happens if you don’t use it?
+What happens if i don’t use it?
 
 You’d need to:
 
@@ -98,9 +99,9 @@ Real-time counters
 
 Pub/Sub
 
-Job queues ← this is what we use
+Job queues ← this is what i use
 
-Why We Need Redis in DeployMate
+Why I Need Redis in DeployMate
 
 my system has:
 
@@ -108,13 +109,13 @@ API (receives request)
 
 Worker (does heavy processing like AI + repo analysis)
 
-We don’t want:
+I don’t want:
 
 User → API → wait 30 seconds while AI runs
 
 That would freeze the request.
 
-Instead we do this:
+Instead i do this:
 
 User → API
 API → put job in queue (Redis)
@@ -230,7 +231,7 @@ up → Builds (if needed) and starts the containers.
 
 -d → Runs in detached mode (in the background).
 
-✅ What Should Happen
+ What Should Happen
 
 If everything is correct:
 
@@ -238,7 +239,7 @@ Docker will build images (if not built).
 
 Containers will start.
 
-You’ll get container IDs printed.
+I'll get container IDs printed.
 
 my services (API, DB, etc.) will be running in background.
 
@@ -251,6 +252,9 @@ I'll create a small clean API:
 config loader
 
 basic error handling
+
+<!--Step 2 : Build the API skeleton (Express + TypeScript) -->
+
 <!-- apps/api/package.json -->
 Why these packages
 
@@ -268,7 +272,7 @@ If env is missing, I fail immediately with a clear error.
 <!-- apps/api/src/main.ts -->
 That file (apps/api/src/app.ts) exists to separate “building the Express app” from “starting the server”.
 
-Why we don’t put everything in main.ts
+Why i don’t put everything in main.ts
 
 Because main.ts should only do one thing:
 
@@ -278,7 +282,7 @@ create the app
 
 start listening on a port
 
-If you mix routes, middleware, error handlers, DB init, queue init, etc. inside main.ts, it becomes messy fast.
+If i mix routes, middleware, error handlers, DB init, queue init, etc. inside main.ts, it becomes messy fast.
 
 What app.ts is responsible for
 
@@ -297,7 +301,7 @@ can send JSON bodies up to 2MB (good for repo metadata / prompts later)
 2) Health endpoint
 app.get("/health", ...)
 
-DigitalOcean (and you) can ping this to know the service is alive.
+DigitalOcean (and i) can ping this to know the service is alive.
 Also useful later for monitoring / readiness checks.
 
 3) 404 handler
@@ -330,3 +334,267 @@ One important note (ordering)
 Your error handler only catches errors if a route calls next(err) or throws inside async handlers properly. Later we’ll add an asyncHandler wrapper or use a small helper to ensure async errors get caught.
 
 <!-- apps/api/.env -->
+apps/api/.env is just a local-development convenience file so the API can start with the right environment variables without i typing/exporting them every time.
+
+Why you’d have it
+
+When i run:
+
+npm run dev
+
+the API reads env vars (via dotenv/config in env.ts). If i don’t provide them somewhere, things like DATABASE_URL and REDIS_URL won’t exist and the server will fail.
+
+So .env is a simple way to store:
+
+API_PORT
+
+DATABASE_URL
+
+REDIS_URL
+
+secrets like API_JWT_SECRET
+
+Why in apps/api/ specifically
+
+Because it scopes config to that service. In a monorepo i'll likely have different .env files:
+
+apps/api/.env (API settings)
+
+apps/worker/.env (Worker settings)
+
+apps/web/.env (Frontend env settings if needed)
+
+This avoids mixing everything in one place.
+<!--worker folder-->
+the worker is a separate backend process whose job is to do heavy / slow tasks in the background, instead of making the API wait.
+
+Why i need a worker
+
+If your API tries to do everything inside the request:
+
+cloning a repo
+
+scanning many files
+
+calling an LLM (can take seconds)
+
+generating/exporting files
+
+uploading to Spaces
+
+…then the API request becomes slow, can timeout, and the UI feels laggy.
+
+So i split responsibilities:
+
+What the worker folder means
+
+apps/worker is a separate service (a separate Node app) that:
+
+listens to a queue (Redis via BullMQ)
+
+picks up jobs that the API enqueues
+
+runs the heavy logic
+
+returns results (and later i'll store them in DB/Spaces)
+
+Simple flow
+
+User clicks “Analyze Repo” in UI
+
+API receives request and immediately responds with jobId
+
+API pushes a job to Redis queue
+
+Worker consumes that job and does the heavy work
+
+UI checks job status until it’s done
+
+What tasks should go in the worker (DeployMate examples)
+
+Repo ingestion
+
+download ZIP from GitHub
+
+or shallow clone
+
+read key files: package.json, angular.json, requirements.txt, Dockerfile, etc.
+
+Stack detection
+
+decide: Angular? React? Node? Python? .NET?
+
+detect build commands, start commands
+
+AI generation
+
+generate Dockerfile
+
+generate GitHub Actions pipeline
+
+generate DigitalOcean App Spec YAML
+
+generate deployment steps
+
+Export
+
+create a ZIP containing all generated files
+
+upload to DigitalOcean Spaces
+
+What stays in the API (fast things)
+
+auth (JWT)
+
+saving/reading “projects”
+
+creating jobs
+
+returning job status + results to frontend
+
+Think of it like this
+
+API = receptionist (fast, answers immediately)
+
+Worker = engineer in the back doing the real work
+
+Both run separately on DigitalOcean:
+
+api is a Web Service
+
+worker is also a Web Service (or “worker service”) that runs continuously
+<!-- apps/worker/package.json -->
+Why:
+
+bullmq = queue + worker framework
+
+ioredis = Redis driver BullMQ uses
+
+dotenv + zod = same config safety as API
+
+<!-- apps/worker/.env -->
+apps/worker/.env is there so the worker can run independently with the right configuration (mainly REDIS_URL) without i hardcoding anything in code.
+
+What it does
+
+When the worker starts, this line in apps/worker/src/config/env.ts loads environment variables:
+
+import "dotenv/config";
+
+So the worker reads:
+
+REDIS_URL=redis://localhost:6379
+
+Then it connects BullMQ to the correct Redis instance.
+
+Why i want it (especially in a monorepo)
+
+API and Worker are separate processes. Each one needs its own config.
+
+In production (DigitalOcean), i won’t use .env files; i'll set env vars in App Platform.
+But locally, .env is the fastest way to run each service.
+
+Do i have to keep it?
+
+No. Fast options:
+
+Option A (keep it) — simplest
+
+Each service has its own .env.
+
+Run from its folder, it “just works”.
+
+Option B (single root .env)
+
+I can delete apps/worker/.env and set REDIS_URL globally in your shell or use root tooling.
+
+But then i must ensure the worker process sees that env var.
+
+Best practice
+
+Keep .env.example committed.
+
+Keep .env NOT committed (add it to .gitignore).
+<!-- apps/worker/src/config/env.ts -->
+
+Because the worker is a separate program from the API, and it also needs configuration (at least REDIS_URL). apps/worker/src/config/env.ts gives i three important benefits:
+
+Loads environment variables (dotenv/config) so the worker can run locally with apps/worker/.env.
+
+Validates required config at startup (zod) so i fail fast with a clear error instead of silent “worker not processing jobs”.
+
+Centralizes config so every worker file imports env.REDIS_URL from one place (clean + scalable when i add more vars like DATABASE_URL, SPACES_*, OPENAI_API_KEY, etc.).
+
+What would happen without it?
+
+You’d do things like:
+
+const redisUrl = process.env.REDIS_URL;
+
+If i forget to set it, redisUrl becomes undefined and i get confusing Redis/BullMQ errors (or it connects to the wrong place).
+
+Why is it separate from the API env file?
+
+Even if both use Redis, they’re different services:
+
+In DigitalOcean they run as separate App Platform components
+
+They can have different env vars
+
+I want the worker to boot independently
+
+<!-- apps/worker/src/queue/queues.ts -->
+
+Why: one source of truth for queue names.
+<!-- apps/worker/src/queue/worker.ts -->
+<!-- apps/worker/src/main.ts -->
+Because we’re separating “bootstrapping the app” from “running queue workers”.
+
+What each file does
+
+apps/worker/src/main.ts
+
+The entry point (the thing Node runs).
+
+Should stay tiny: load config → start the app.
+
+apps/worker/src/queue/worker.ts
+
+Contains the actual BullMQ Worker setup:
+
+which queue to listen to (repo-analysis)
+
+how to process jobs (the handler function)
+
+event listeners (completed, failed)
+
+Redis connection config
+
+Why this separation is useful (even in hackathon speed)
+
+Scales cleanly when i add more queues
+
+Today: repo-analysis
+
+Tomorrow: generate-docker, generate-cicd, export-zip
+
+I'll just add more worker instances in startWorkers() without turning main.ts into a mess.
+
+Easier testing and reuse
+
+I can import startWorkers() in tests or different runtime setups.
+
+Clear mental model
+
+main.ts = “start the service”
+
+queue/worker.ts = “job processing logic”
+
+<!--Step 3 -- Worker skeleton + BullMQ queue -->
+
+Goal of this step
+
+ API can enqueue a job to Redis
+ Worker consumes the job and logs it
+ You can test it with one HTTP request
+
