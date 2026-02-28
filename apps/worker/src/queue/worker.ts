@@ -1,38 +1,35 @@
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import { env } from "../config/env.js";
-import { QUEUES } from "./queues.js";
-
-const connection = new IORedis(env.REDIS_URL, {
-  maxRetriesPerRequest: null,
-});
+import { QUEUES } from "./names.js";
 
 export function startWorkers() {
-  const repoWorker = new Worker(
+  const connection = new IORedis(env.REDIS_URL, { maxRetriesPerRequest: null });
+
+  const repoAnalysisWorker = new Worker(
     QUEUES.REPO_ANALYSIS,
-    async (job) => {
-      // For now i only log. Later i will:
-      // - fetch repo files
-      // - detect stack
-      // - call LLM
-      // - save outputs
-      console.log(`[worker] Processing job ${job.id} in ${job.name}`);
-      console.log("[worker] payload:", job.data);
+    async (job: any) => {
+      // This is where we’ll later clone repo + detect stack + call LLM
+      console.log(`[worker] processing job ${job.id} on ${job.queueName}`);
+      console.log(`[worker] payload:`, job.data);
 
-      // simulate work
-      await new Promise((r) => setTimeout(r, 800));
+      // Simulate work
+      await new Promise((r) => setTimeout(r, 500));
 
-      return { ok: true, analyzedAt: new Date().toISOString() };
+      return {
+        status: "done",
+        received: job.data,
+      };
     },
     { connection },
   );
 
-  repoWorker.on("completed", (job, result) => {
-    console.log(`[worker]  completed job ${job.id}`, result);
+  repoAnalysisWorker.on("completed", (job: any, result: any) => {
+    console.log(`[worker] completed job ${job.id}`, result);
   });
 
-  repoWorker.on("failed", (job, err) => {
-    console.error(`[worker] ❌ failed job ${job?.id}`, err);
+  repoAnalysisWorker.on("failed", (job: any, err: any) => {
+    console.error(`[worker] failed job ${job?.id}`, err);
   });
 
   console.log("[worker] workers started");

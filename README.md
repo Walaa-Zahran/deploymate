@@ -597,4 +597,30 @@ Goal of this step
  API can enqueue a job to Redis
  Worker consumes the job and logs it
  You can test it with one HTTP request
+<!-- 3.1 Install BullMQ + Redis client in API and Worker -->
 
+In apps/api:
+npm i bullmq ioredis
+
+In apps/worker create package.json, tsconfig.json
+
+<!-- 3.2 Add shared env config in Worker apps/worker/src/config/env.ts apps/worker/.env-->
+<!-- 3.3 Define queue names  apps/worker/src/queue/names.ts-->
+<!-- 3.4 Create the worker process apps/worker/src/queue/worker.ts-->
+
+<!-- Step 4 — API can enqueue a job (end-to-end test) -->
+
+<!-- 4.1 Add queue names in API apps/api/src/queue/names.ts-->
+
+<!-- 4.2 Add queue setup in API  apps/api/src/queue/queues.ts-->
+
+<!-- 4.3 Add an endpoint to enqueue jobs apps/api/src/modules/analysis/analysis.routes.ts-->
+wire this router into the app.
+Edit: apps/api/src/app.ts
+So my API now has:
+
+GET /health
+
+POST /analysis/repo
+
+<!-- (Step 5) -->
