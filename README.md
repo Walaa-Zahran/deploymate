@@ -623,4 +623,25 @@ GET /health
 
 POST /analysis/repo
 
-<!-- (Step 5) -->
+<!-- Step 5: Database (Prisma) + persistent Project/Run tracking -->
+so your API/Worker stop being “logs only” and become a real product.
+
+<!-- 5.1 Install Prisma in apps/api -->
+<!-- 5.2 Define DB models apps/api/prisma/schema.prisma -->
+
+Why this design
+
+Project = one repo URL
+
+AnalysisRun = each time you click “Analyze”
+
+result is JSON so we can evolve quickly (hackathon-friendly)
+
+<!-- 5.3 Run migration + generate client -->
+<!-- 5.4 Add Prisma client singleton apps/api/src/db/prisma.ts-->
+<!-- 5.5 Update API: create a Project + Run, then enqueue job with runId -->
+add an endpoint:
+
+POST /analysis/repo creates/gets Project, creates Run(QUEUED), enqueues job with runId
+
+GET /analysis/runs/:runId returns status + result
