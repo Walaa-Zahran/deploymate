@@ -3,17 +3,20 @@ import IORedis from "ioredis";
 import { env } from "../config/env.js";
 import { QUEUES } from "./names.js";
 import { prisma } from "../db/prisma.js";
-
+import { detectStackFromRepoUrl } from "../services/stackDetector.js";
+type AnalyzeRepoJob = {
+  runId: string;
+  repoUrl: string;
+};
 export function startWorkers() {
   const connection = new IORedis(env.REDIS_URL, { maxRetriesPerRequest: null });
 
   const repoAnalysisWorker = new Worker(
     QUEUES.REPO_ANALYSIS,
     async (job) => {
-      console.log("[worker] got job:", job.id, job.data);
-      const { runId, repoUrl } = job.data as { runId: string; repoUrl: string };
-
-      console.log("[worker] updating RUNNING in DB for:", runId);
+      const data = job.data as AnalyzeRepoJob;
+      const { runId, repoUrl } = data;
+      console.log(`[worker] processing job ${job.id} runId=${runId}`);
 
       // 1) RUNNING
       await prisma.analysisRun.update({
@@ -23,30 +26,31 @@ export function startWorkers() {
       console.log("[worker] RUNNING updated for:", runId);
 
       try {
-        // 2) Do a lightweight “analysis” for now
+        // 2) analyze (placeholder logic)
+        const detected = detectStackFromRepoUrl(repoUrl);
+
         const result = {
           repoUrl,
-          detected: {
-            framework: repoUrl.includes("angular") ? "Angular" : "Unknown",
-            language: "TypeScript",
-          },
-          generatedAt: new Date().toISOString(),
+          detectedStack: detected,
+          analyzedAt: new Date().toISOString(),
         };
-        console.log("[worker] updating DONE in DB for:", runId);
 
-        // 3) DONE + save result JSON
+        // 3) save result + mark DONE
         await prisma.analysisRun.update({
           where: { id: runId },
-          data: { status: "DONE", result },
+          data: {
+            status: "DONE",
+            result,
+          },
         });
-        console.log("[worker] DONE updated for:", runId);
 
         return result;
       } catch (e: any) {
-        // 4) FAILED + save error
+        // 4) mark FAILED
+        const message = e?.message ?? "Unknown error";
         await prisma.analysisRun.update({
           where: { id: runId },
-          data: { status: "FAILED", error: e?.message ?? "Unknown error" },
+          data: { status: "FAILED", error: message },
         });
         throw e;
       }
@@ -54,8 +58,8 @@ export function startWorkers() {
     { connection },
   );
 
-  repoAnalysisWorker.on("completed", (job) => {
-    console.log(`[worker] completed job ${job.id}`);
+  repoAnalysisWorker.on("completed", (job, result) => {
+    console.log(`[worker] completed job ${job.id}`, result);
   });
 
   repoAnalysisWorker.on("failed", (job, err) => {

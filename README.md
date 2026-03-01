@@ -653,6 +653,8 @@ GET /analysis/runs/:runId returns status + result
 <!-- 6.3 Add worker Prisma client apps/worker/src/db/prisma.ts-->
 <!-- 6.4 Update Worker job processor to set status apps/worker/src/queue/worker.ts-->
 <!-- 6.5 Update API to enqueue with runId  -->
+<!-- 6.6 Create stack detection apps/worker/src/services/stackDetector.ts-->
+This isn’t “smart” yet, but it gives your UI real content today.
 Step 5 creates the “truth” my whole product revolves around, and Step 6 is just the worker updating that truth.
 
 If I skip Step 5 (DB schema + tables), then:
