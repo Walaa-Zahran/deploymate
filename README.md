@@ -645,3 +645,66 @@ add an endpoint:
 POST /analysis/repo creates/gets Project, creates Run(QUEUED), enqueues job with runId
 
 GET /analysis/runs/:runId returns status + result
+
+<!-- Step 6 — Worker writes RUNNING/DONE/FAILED back to Postgres -->
+
+<!-- 6.1 Install Prisma in Worker 
+<!-- 6.2 Copy Prisma schema to worker -->
+<!-- 6.3 Add worker Prisma client apps/worker/src/db/prisma.ts-->
+<!-- 6.4 Update Worker job processor to set status apps/worker/src/queue/worker.ts-->
+<!-- 6.5 Update API to enqueue with runId  -->
+Step 5 creates the “truth” my whole product revolves around, and Step 6 is just the worker updating that truth.
+
+If I skip Step 5 (DB schema + tables), then:
+
+The API can enqueue jobs 
+
+The worker can process jobs 
+
+But i have no persistent record of:
+
+what repo was analyzed
+
+which run is in progress
+
+results to show in the UI
+
+history for the dashboard
+
+status for polling (queued/running/done/failed)
+
+So the app becomes “logs in the terminal” instead of a real product.
+
+What each step contributes
+
+Step 5 (DB foundation):
+
+Defines Project + AnalysisRun
+
+Gives every analysis a runId
+
+Lets the frontend do: “submit → get runId → poll status”
+
+Makes results survive restarts 
+
+Step 6 (execution + updates):
+
+Worker takes {runId, repoUrl}
+
+Sets run status to RUNNING
+
+Writes result JSON into the run
+
+Marks run DONE or FAILED
+
+So Step 6 depends on Step 5.
+Step 5 is the database contract; Step 6 is the worker fulfilling it.
+
+Think of it like this
+
+Step 5 = create the “invoice table”
+
+Step 6 = actually “process the invoice” and update it
+
+Both are needed for the product to feel real.
+<!-- Step 7  -->

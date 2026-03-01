@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../../db/prisma.js";
-
+import { repoAnalysisQueue } from "../../queue/queues.js";
 export const analysisRouter = Router();
 
 analysisRouter.post("/repo", async (req, res, next) => {
@@ -25,6 +25,11 @@ analysisRouter.post("/repo", async (req, res, next) => {
         status: "QUEUED",
       },
     });
+    await repoAnalysisQueue.add("analyzeRepo", {
+      runId: run.id,
+      repoUrl: project.repoUrl,
+    });
+    console.log("[api] enqueued job for run:", run.id);
 
     return res.json({
       ok: true,
