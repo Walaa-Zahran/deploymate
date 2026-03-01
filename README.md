@@ -294,7 +294,7 @@ app.use(express.json(...))
 
 So every request:
 
-is allowed from your Angular domain (API_CORS_ORIGIN)
+is allowed from my Angular domain (API_CORS_ORIGIN)
 
 can send JSON bodies up to 2MB (good for repo metadata / prompts later)
 
@@ -331,7 +331,7 @@ keep startup logic clean
 
 One important note (ordering)
 
-Your error handler only catches errors if a route calls next(err) or throws inside async handlers properly. Later we’ll add an asyncHandler wrapper or use a small helper to ensure async errors get caught.
+My error handler only catches errors if a route calls next(err) or throws inside async handlers properly. Later we’ll add an asyncHandler wrapper or use a small helper to ensure async errors get caught.
 
 <!-- apps/api/.env -->
 apps/api/.env is just a local-development convenience file so the API can start with the right environment variables without i typing/exporting them every time.
@@ -370,7 +370,7 @@ the worker is a separate backend process whose job is to do heavy / slow tasks i
 
 Why i need a worker
 
-If your API tries to do everything inside the request:
+If my API tries to do everything inside the request:
 
 cloning a repo
 
@@ -506,7 +506,7 @@ Run from its folder, it “just works”.
 
 Option B (single root .env)
 
-I can delete apps/worker/.env and set REDIS_URL globally in your shell or use root tooling.
+I can delete apps/worker/.env and set REDIS_URL globally in my shell or use root tooling.
 
 But then i must ensure the worker process sees that env var.
 
@@ -624,7 +624,7 @@ GET /health
 POST /analysis/repo
 
 <!-- Step 5: Database (Prisma) + persistent Project/Run tracking -->
-so your API/Worker stop being “logs only” and become a real product.
+so my API/Worker stop being “logs only” and become a real product.
 
 <!-- 5.1 Install Prisma in apps/api -->
 <!-- 5.2 Define DB models apps/api/prisma/schema.prisma -->
@@ -654,7 +654,7 @@ GET /analysis/runs/:runId returns status + result
 <!-- 6.4 Update Worker job processor to set status apps/worker/src/queue/worker.ts-->
 <!-- 6.5 Update API to enqueue with runId  -->
 <!-- 6.6 Create stack detection apps/worker/src/services/stackDetector.ts-->
-This isn’t “smart” yet, but it gives your UI real content today.
+This isn’t “smart” yet, but it gives my UI real content today.
 Step 5 creates the “truth” my whole product revolves around, and Step 6 is just the worker updating that truth.
 
 If I skip Step 5 (DB schema + tables), then:
@@ -709,4 +709,38 @@ Step 5 = create the “invoice table”
 Step 6 = actually “process the invoice” and update it
 
 Both are needed for the product to feel real.
-<!-- Step 7  -->
+<!-- Step 7  Real repo inspection (GitHub API) + better stack detection-->
+✅ Worker reads real files from a GitHub repo (public repos)
+✅ Detects stack from package.json, angular.json, etc.
+✅ Stores a richer result JSON in the DB
+
+For now we support public repos without auth.
+<!-- 7.1 Worker: Add a GitHub repo URL parser apps/worker/src/integrations/github/parseRepoUrl.ts-->
+<!-- 7.2 Worker: GitHub Contents API client apps/worker/src/integrations/github/githubContents.ts -->
+Why this approach
+
+Super fast
+
+No cloning, no disk, no git required
+
+Great for hackathon demos
+<!-- 7.3 Worker: Improved stack detection using repo files apps/worker/src/services/stackDetectorFromRepo.ts-->
+<!-- 7.4 Update Worker job to use GitHub detection Edit: apps/worker/src/queue/worker.ts -->
+✅ Worker now reads real repo files and produces real signals.
+<!-- Step 8 -- AI generation. Add LLM integration in Worker (Groq-compatible) -->
+We’ll generate 3 deliverables from the detected stack and store them inside AnalysisRun.result:
+
+Dockerfile
+
+GitHub Actions workflow (CI/CD)
+
+DigitalOcean App Platform spec (app.yaml)
+
+✅ No Spaces yet. First we generate + store in DB so my UI can show results immediately.
+<!-- 8.1 Add env vars (Worker) Update apps/worker/.env-->
+<!-- 8.2 Worker env validation Edit apps/worker/src/config/env.ts-->
+<!-- 8.3 Create a tiny Groq-compatible client apps/worker/src/integrations/llm/openaiClient.ts-->
+<!-- 8.4 Prompt templates (deterministic, hackathon-safe) -->
+<!-- 8.5 Artifact generator service apps/worker/src/services/artifactGenerator.ts-->
+<!-- 8.6 Update Worker job: after stack detection, generate artifacts & save Edit apps/worker/src/queue/worker.ts-->
+<!-- Step 9 -- Zip export + download endpoint -->

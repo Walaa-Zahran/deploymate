@@ -3,7 +3,8 @@ import IORedis from "ioredis";
 import { env } from "../config/env.js";
 import { QUEUES } from "./names.js";
 import { prisma } from "../db/prisma.js";
-import { detectStackFromRepoUrl } from "../services/stackDetector.js";
+import { detectStackFromGitHub } from "../services/stackDetectorFromRepo.js";
+import { generateArtifacts } from "../services/artifactGenerator.js";
 type AnalyzeRepoJob = {
   runId: string;
   repoUrl: string;
@@ -27,14 +28,28 @@ export function startWorkers() {
 
       try {
         // 2) analyze (placeholder logic)
-        const detected = detectStackFromRepoUrl(repoUrl);
+        const detected = await detectStackFromGitHub(
+          repoUrl /*, githubToken */,
+        );
+
+        const artifacts = await generateArtifacts({
+          repoUrl,
+          detected: {
+            framework: detected.framework,
+            packageManager: detected.packageManager,
+          },
+        });
 
         const result = {
           repoUrl,
           detectedStack: detected,
+          artifacts: {
+            dockerfile: artifacts.dockerfile,
+            githubActions: artifacts.githubActionsYaml,
+            doAppSpec: artifacts.doAppSpecYaml,
+          },
           analyzedAt: new Date().toISOString(),
         };
-
         // 3) save result + mark DONE
         await prisma.analysisRun.update({
           where: { id: runId },
