@@ -4,6 +4,7 @@ import { env } from "../config/env.js";
 import { QUEUES } from "./names.js";
 import { prisma } from "../db/prisma.js";
 import { detectStackFromGitHub } from "../services/stackDetectorFromRepo.js";
+import { buildBundleZip } from "../services/zipExporter.js";
 import { generateArtifacts } from "../services/artifactGenerator.js";
 type AnalyzeRepoJob = {
   runId: string;
@@ -39,7 +40,13 @@ export function startWorkers() {
             packageManager: detected.packageManager,
           },
         });
-
+        const zip = await buildBundleZip({
+          dockerfile: artifacts.dockerfile,
+          githubActionsYaml: artifacts.githubActionsYaml,
+          doAppSpecYaml: artifacts.doAppSpecYaml,
+          repoUrl,
+          framework: detected.framework,
+        });
         const result = {
           repoUrl,
           detectedStack: detected,
@@ -47,6 +54,10 @@ export function startWorkers() {
             dockerfile: artifacts.dockerfile,
             githubActions: artifacts.githubActionsYaml,
             doAppSpec: artifacts.doAppSpecYaml,
+            zip: {
+              filename: zip.filename,
+              base64: zip.base64,
+            },
           },
           analyzedAt: new Date().toISOString(),
         };

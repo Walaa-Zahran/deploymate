@@ -744,3 +744,67 @@ DigitalOcean App Platform spec (app.yaml)
 <!-- 8.5 Artifact generator service apps/worker/src/services/artifactGenerator.ts-->
 <!-- 8.6 Update Worker job: after stack detection, generate artifacts & save Edit apps/worker/src/queue/worker.ts-->
 <!-- Step 9 -- Zip export + download endpoint -->
+This is a huge demo win: “Analyze repo → generate → Download ready-to-deploy bundle”.
+
+We’ll implement:
+
+Worker builds a ZIP containing:
+
+Dockerfile
+
+.github/workflows/deploymate.yml
+
+do-app.yaml
+
+DEPLOYMATE_README.md
+
+Worker saves the zip as base64 in DB for now (fast)
+
+API exposes: GET /analysis/runs/:runId/download to download deploymate-bundle.zip
+
+Later we’ll switch from “base64 in DB” → “upload to Spaces and store URL”. Same API contract.
+<!-- 9.1 Add jszip to Worker apps/worker -->
+<!-- 9.2 Create ZIP export service apps/worker/src/services/zipExporter.ts-->
+<!-- 9.3 Store ZIP in DB result apps/worker/src/queue/worker.ts-->
+Now every run stores a downloadable bundle.
+<!-- 9.4 API download endpoint apps/api/src/modules/analysis/analysis.download.routes.ts-->
+<!-- 9.5 Test ZIP download -->
+Run infra + worker + api as usual
+<!-- (Step 10) — DigitalOcean Spaces (production-ready) -->
+
+Now we stop storing big zip base64 in DB (not scalable) and instead:
+
+Worker uploads zip to DigitalOcean Spaces
+
+DB stores zipUrl
+
+API download endpoint redirects or streams from Spaces
+<!-- Step 10 — Upload bundle to DigitalOcean Spaces -->
+switch from:
+
+storing ZIP base64 in DB ❌
+to:
+
+uploading ZIP to Spaces (S3-compatible) ✅
+
+storing zipUrl (or zipKey) in DB ✅
+
+API download endpoint will redirect to Spaces (or stream it)
+
+This is exactly the kind of “we used DigitalOcean services properly” detail judges love.
+<!-- 10.0 What you need from DigitalOcean -->
+
+Create a Spaces bucket and get:
+
+SPACES_ENDPOINT (region endpoint, like nyc3.digitaloceanspaces.com)
+
+SPACES_BUCKET (bucket name)
+
+SPACES_KEY (access key)
+
+SPACES_SECRET (secret key)
+
+Also decide:
+
+either make bucket public (easy demo), or keep private (more correct)
+For hackathon: public read is fine.
